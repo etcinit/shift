@@ -1,0 +1,70 @@
+name:                shift
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/githubuser/shift#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2016 Author name here
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Shift
+                     , Shift.CLI
+                     , Shift.Git
+                     , Shift.Parsers
+                     , Shift.Processing
+                     , Shift.Rendering
+                     , Shift.Types
+                     , Shift.Utilities
+                     , GitHub.UserSearch
+  build-depends:       base >= 4.7 && < 5
+                     , versions
+                     , hit
+                     , text
+                     , containers
+                     , megaparsec
+                     , unordered-containers
+                     , string-conversions
+                     , bytestring
+                     , data-default
+                     , lens
+                     , transformers
+                     , process
+                     , optparse-applicative
+                     , mtl
+                     , http-client
+                     , http-client-tls
+                     , github
+                     , aeson
+                     , io-memoize
+                     , vector
+                     , exceptions
+  default-language:    Haskell2010
+
+executable shift-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , shift
+  default-language:    Haskell2010
+
+test-suite shift-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , shift
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/shift

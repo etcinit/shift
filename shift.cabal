@@ -1,14 +1,14 @@
 name:                shift
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            A CHANGELOG generator
 description:         Please see README.md
-homepage:            https://github.com/githubuser/shift#readme
+homepage:            https://phabricator.chromabits.com/diffusion/SHFT/
 license:             Apache
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
-category:            Web
+author:              Eduardo Trujillo
+maintainer:          ed@chromabits.com
+copyright:           2016 Eduardo Trujillo
+category:            Git
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
@@ -48,7 +48,7 @@ library
                      , exceptions
   default-language:    Haskell2010
 
-executable shift-exe
+executable shift
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

@@ -4,24 +4,23 @@
 -- | Provides missing user search functionality from the GitHub client.
 module GitHub.UserSearch where
 
-import Control.Lens (makeLenses)
-import Data.Aeson (FromJSON, Value (Object), parseJSON, (.:))
-import Data.Aeson.Types (typeMismatch)
-import Data.Text (Text)
-
+import           Control.Lens       (makeLenses)
+import           Data.Aeson         (FromJSON, Value (Object), parseJSON, (.:))
+import           Data.Aeson.Types   (typeMismatch)
+import           Data.Text          (Text)
 import qualified Data.Text.Encoding as TE
 
 import GitHub.Data
 
 data UserResult = UserResult
-  { _urLogin :: Text
-  , _urId :: Int
-  , _urAvatarUrl :: Text
+  { _urLogin      :: Text
+  , _urId         :: Int
+  , _urAvatarUrl  :: Text
   , _urGravatarId :: Text
-  , _urHtmlUrl :: Text
-  , _urType :: Text
-  , _urSiteAdmin :: Bool
-  , _urScore :: Double
+  , _urHtmlUrl    :: Text
+  , _urType       :: Text
+  , _urSiteAdmin  :: Bool
+  , _urScore      :: Double
   } deriving (Show)
 
 instance FromJSON UserResult where

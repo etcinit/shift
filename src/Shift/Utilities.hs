@@ -2,6 +2,7 @@
 module Shift.Utilities where
 
 import Control.Exception (Exception)
+
 import Control.Monad.Catch (MonadThrow, throwM)
 
 -- | Attempts to extract a value from a Maybe type. If it fails, the provided

@@ -1,0 +1,21 @@
+steps:
+  # Import cleanup
+  - imports:
+      align: group
+
+  # Language pragmas
+  - language_pragmas:
+      style: vertical
+      remove_redundant: true
+
+  # Align the types in record declarations
+  - records: {}
+
+  # Remove trailing whitespace
+  - trailing_whitespace: {}
+
+columns: 80
+
+language_extensions:
+  - LambdaCase
+  - MultiParamTypeClasses

@@ -1,12 +1,16 @@
-module Shift (shiftMain, module X) where
+module Shift
+  ( shiftMain
+  , module X
+  ) where
 
-import Shift.CLI as X
-import Shift.Git as X
-import Shift.Rendering as X
-import Shift.Types as X
+import Options.Applicative
 
 import Control.Lens ((^.))
-import Options.Applicative
+
+import Shift.CLI       as X
+import Shift.Git       as X
+import Shift.Rendering as X
+import Shift.Types     as X
 
 -- | The main CLI entrypoint.
 shiftMain :: IO ()

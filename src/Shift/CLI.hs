@@ -1,18 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
 module Shift.CLI where
 
-import Control.Lens (makeLenses)
 import Options.Applicative
 
+import Control.Lens (makeLenses)
+
 data ShiftOptions = ShiftOptions
-  { _soCommand :: ShiftCommand
-  , _soHostingType :: HostingType
-  , _soGitHubOwner :: Maybe String
+  { _soCommand          :: ShiftCommand
+  , _soHostingType      :: HostingType
+  , _soGitHubOwner      :: Maybe String
   , _soGitHubRepository :: Maybe String
-  , _soGitHubToken :: Maybe String
+  , _soGitHubToken      :: Maybe String
   } deriving (Show, Eq)
 
 data ShiftCommand = GenerateCommand deriving (Show, Eq, Enum)

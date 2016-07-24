@@ -1,41 +1,42 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes        #-}
 
 module Shift.Git where
 
-import Data.Git
-import Data.Git.Storage.Object
-import Data.Git.Ref (fromHex, isHex)
-import Data.Versions (parseV)
-import Text.Megaparsec (ParseError)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-import Data.Either (rights)
-import Data.Set as S (toList)
-import Data.Tuple (swap)
-import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as BS
-import Data.Maybe (catMaybes)
-import Data.List (sortBy)
-import Data.String.Conversions (cs)
+import Control.Monad  (void)
+import Data.Either    (rights)
+import Data.List      (sortBy)
+import Data.Maybe     (catMaybes)
+import Data.Set       as S (toList)
+import Data.Tuple     (swap)
 import System.Process
-import Control.Monad.State (runStateT)
-import Data.Default (def)
-import Control.Monad (void)
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import GitHub.Auth (Auth (OAuth))
-import Control.Lens ((^.))
-import Control.Monad.Trans (liftIO)
-import Control.Monad.Reader (runReaderT)
-import Control.Monad.Catch (throwM)
+
+import           Control.Lens            ((^.))
+import           Control.Monad.Catch     (throwM)
+import           Control.Monad.Reader    (runReaderT)
+import           Control.Monad.State     (runStateT)
+import           Control.Monad.Trans     (liftIO)
+import           Data.ByteString.Char8   (ByteString)
+import qualified Data.ByteString.Char8   as BS
+import           Data.Default            (def)
+import           Data.Git
+import           Data.Git.Ref            (fromHex, isHex)
+import           Data.Git.Storage.Object
+import           Data.String.Conversions (cs)
+import           Data.Text               (Text)
+import qualified Data.Text               as T
+import qualified Data.Text.IO            as TIO
+import           Data.Versions           (parseV)
+import           GitHub.Auth             (Auth (OAuth))
+import           Network.HTTP.Client     (newManager)
+import           Network.HTTP.Client.TLS (tlsManagerSettings)
+import           Text.Megaparsec         (ParseError)
 
 import Shift.CLI
-import Shift.Types
 import Shift.Processing
 import Shift.Rendering
-import Shift.Utilities (orError, pairs)
+import Shift.Types
+import Shift.Utilities  (orError, pairs)
 
 parseTag :: RefName -> Either ParseError TagRef
 parseTag ref = case parseV . cs . refNameRaw $ ref of

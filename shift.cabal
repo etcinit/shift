@@ -46,6 +46,7 @@ library
                      , io-memoize
                      , vector
                      , exceptions
+                     , semigroups
   default-language:    Haskell2010
 
 executable shift

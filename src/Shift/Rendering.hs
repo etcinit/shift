@@ -1,19 +1,20 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Shift.Rendering where
 
-import Control.Lens ((^.))
-import Data.Text (Text)
-import qualified Data.Text as T (take)
-import qualified Data.Text.IO as TIO (putStrLn)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Git (Ref, Commit, commitAuthor)
-import Data.Monoid ((<>))
-import Data.String.Conversions (cs)
 import Data.List (sortOn)
-import Control.Monad.State (MonadState)
-import Data.Versions (prettyV)
+
+import           Control.Lens            ((^.))
+import           Control.Monad.IO.Class  (MonadIO, liftIO)
+import           Control.Monad.State     (MonadState)
+import           Data.Git                (Commit, Ref, commitAuthor)
+import           Data.Monoid             ((<>))
+import           Data.String.Conversions (cs)
+import           Data.Text               (Text)
+import qualified Data.Text               as T (take)
+import qualified Data.Text.IO            as TIO (putStrLn)
+import           Data.Versions           (prettyV)
 
 import Shift.Types
 
@@ -38,7 +39,15 @@ renderConventionalCommit (ref, commit, pc) = do
   renderedRef <- renderRef ref
   authorText <- renderAuthor commit
 
-  pure $ "- " <> renderedRef <> " " <> bold (pc ^. ccScope <> ":") <> " " <> (pc ^. ccSubject) <> authorText
+  pure . mconcat $
+    [ "- "
+    , renderedRef
+    , " "
+    , bold $ pc ^. ccScope <> ":"
+    , " "
+    , pc ^. ccSubject
+    , authorText
+    ]
 
 renderAuthor
   :: (MonadIO m, MonadState s m, ClientState s)

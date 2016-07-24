@@ -1,40 +1,52 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Shift.Parsers where
 
+import           Control.Monad      (void)
+import           Data.List.NonEmpty (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty as NE
+
+import Data.HashSet            (HashSet, fromList)
+import Data.String.Conversions (cs)
 import Text.Megaparsec
 import Text.Megaparsec.Text
-import Data.HashSet (HashSet, fromList)
-import Data.String.Conversions (cs)
-import Control.Monad (void)
 
 import Shift.Types
 
-commitP :: Parser ParsedCommit
-commitP
-  = (PCConventional <$> conventionalCommitP)
-  <|> try (PCMerge <$> mergeCommitP)
-  <|> (PCMisc <$> miscCommitP)
+commit :: Parser ParsedCommit
+commit
+  = (PCConventional <$> conventionalCommit)
+  <|> try (PCMerge <$> mergeCommit)
+  <|> (PCMisc <$> miscCommit)
 
 spaced :: Parser a -> Parser a
 spaced = (*>) $ many (some spaceChar <|> eol)
 
-conventionalCommitP :: Parser ConventionalCommit
-conventionalCommitP = do
-  cType <- commitTypeP
+oneParserOf :: NE.NonEmpty (Parser a) -> Parser a
+oneParserOf (NE.reverse -> (x :| xs)) = foldl (\acc x -> try x <|> acc) x xs
+
+manyCharsTill :: Parser end -> Parser [Char]
+manyCharsTill = manyTill anyChar
+
+someCharsTill :: Parser end -> Parser [Char]
+someCharsTill = someTill anyChar
+
+conventionalCommit :: Parser ConventionalCommit
+conventionalCommit = do
+  cType <- commitType
   void (char '(')
-  cScope <- someTill anyChar (try $ string "): ")
-  cSubject <- someTill anyChar (choice [eol >> pure (), eof])
+  cScope <- someCharsTill (try $ string "): ")
+  cSubject <- someCharsTill (choice [eol >> pure (), eof])
 
-  cBody <- spaced . manyTill anyChar . lookAhead $
-    ( skipMany (try breakingChangeP)
-      *> skipMany (try ticketChangeP)
-      *> many eol
-      *> eof
-    )
+  cBody <- spaced . manyCharsTill . lookAhead $ do
+    skipMany (try breakingChange)
+    skipMany (try ticketChange)
+    many eol
+    eof
 
-  cBreakingChanges <- many (try breakingChangeP)
-  cTicketChanges <- many (try ticketChangeP)
+  cBreakingChanges <- many (try breakingChange)
+  cTicketChanges <- many (try ticketChange)
 
   pure $ ConventionalCommit
     cType
@@ -44,18 +56,13 @@ conventionalCommitP = do
     cBreakingChanges
     cTicketChanges
 
-commitTypeP :: Parser CommitType
-commitTypeP = do
-  cType <- try (string "feat")
-    <|> try (string "fix")
-    <|> try (string "bug") -- Common typo
-    <|> try (string "docs")
-    <|> try (string "doc") -- Common typo
-    <|> try (string "style")
-    <|> try (string "refactor")
-    <|> try (string "ref") -- Common typo
-    <|> try (string "test")
-    <|> string "chore"
+commitType :: Parser CommitType
+commitType = do
+  cType <- oneParserOf . fmap string $
+    "feat" :|
+      [ "fix", "bug", "docs", "doc", "style", "refactor", "ref", "test"
+      , "chore"
+      ]
 
   pure $ case cType of
     "feat" -> CTFeature
@@ -70,25 +77,24 @@ commitTypeP = do
     "chore" -> CTChore
     _ -> CTFeature
 
-breakingChangeP :: Parser BreakingChange
-breakingChangeP = do
+breakingChange :: Parser BreakingChange
+breakingChange = do
   void . spaced . string $ "BREAKING CHANGE: "
 
   BreakingChange
-    <$> (cs <$> manyTill anyChar eol)
-    <*> (cs <$> manyTill anyChar 
-      (spaced eof <|> (skipSome ticketChangeP *> eof))
-    )
+    <$> (cs <$> manyCharsTill eol)
+    <*> (cs <$> manyCharsTill (spaced eof <|> (skipSome ticketChange *> eof)))
 
-ticketChangeP :: Parser (HashSet TicketChange)
-ticketChangeP = do
-  tcAction <- spaced $ manyTill anyChar (string ": ")
-  tcTickets <- some (char '#' *> manyTill anyChar (some spaceChar <|> eol))
+ticketChange :: Parser (HashSet TicketChange)
+ticketChange = do
+  tcAction <- spaced $ manyCharsTill (string ": ")
+  tcTickets <- some (char '#' *> manyCharsTill (some spaceChar <|> eol))
 
   pure . fromList $ (\x -> (cs tcAction, cs x)) <$> tcTickets
 
-mergeCommitP :: Parser MergeCommit
-mergeCommitP = MergeCommit . cs <$> (string "Merge " *> manyTill anyChar (skipSome eol <|> eof))
+mergeCommit :: Parser MergeCommit
+mergeCommit = MergeCommit . cs
+  <$> (string "Merge " *> manyCharsTill (skipSome eol <|> eof))
 
-miscCommitP :: Parser MiscCommit
-miscCommitP = MiscCommit . cs <$> manyTill anyChar (skipSome eol <|> eof)
+miscCommit :: Parser MiscCommit
+miscCommit = MiscCommit . cs <$> manyCharsTill (skipSome eol <|> eof)

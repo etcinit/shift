@@ -1,17 +1,17 @@
 module Shift.Processing where
 
-import Control.Lens ((<>~), (^.))
-import Shift.Types
-import Data.Default (def)
-import Text.Megaparsec (runParser, ParseError)
-import Data.Git (commitMessage, Ref, Commit)
+import Control.Lens            ((<>~), (^.))
+import Data.Default            (def)
+import Data.Git                (Commit, Ref, commitMessage)
 import Data.String.Conversions (cs)
+import Text.Megaparsec         (ParseError, runParser)
 
-import Shift.Parsers
+import qualified Shift.Parsers as P
+import           Shift.Types
 
 parseCommit :: (Ref, Commit) -> Either ParseError ParsedGroup
 parseCommit (r, c) = do
-  pc <- runParser commitP "git" . cs . commitMessage $ c
+  pc <- runParser P.commit "git" . cs . commitMessage $ c
 
   pure (r, c, pc)
 

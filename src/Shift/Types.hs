@@ -1,39 +1,48 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Shift.Types where
 
-import Prelude hiding (lookup, head)
-import Data.Git (Commit, Ref, RefName, Person, personEmail)
-import Control.Lens (makeLenses, makeClassy, (^.), view, assign)
-import Data.Text (Text)
-import Data.HashSet (HashSet)
-import Data.HashMap.Strict (HashMap, insert, lookup)
-import qualified Data.Vector as V
-import Data.Default (Default, def)
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.State (StateT, MonadState, gets)
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.Trans (liftIO)
-import GitHub.Auth (Auth)
-import GitHub.Data.Search (searchResultTotalCount, searchResultResults)
-import GitHub (executeRequestWithMgr)
-import Data.String.Conversions (cs)
-import Network.HTTP.Client (Manager)
 import Control.Exception (Exception, throwIO)
-import Data.Monoid ((<>))
-import Data.Versions (Versioning)
+import Data.Monoid       ((<>))
+import Prelude           hiding (head, lookup)
+
+import           Control.Lens            (assign, makeClassy, makeLenses, view,
+                                          (^.))
+import           Control.Monad.IO.Class  (MonadIO)
+import           Control.Monad.Reader    (ReaderT)
+import           Control.Monad.State     (MonadState, StateT, gets)
+import           Control.Monad.Trans     (liftIO)
+import           Data.Default            (Default, def)
+import           Data.Git                (Commit, Person, Ref, RefName,
+                                          personEmail)
+import           Data.HashMap.Strict     (HashMap, insert, lookup)
+import           Data.HashSet            (HashSet)
+import           Data.String.Conversions (cs)
+import           Data.Text               (Text)
+import qualified Data.Vector             as V
+import           Data.Versions           (Versioning)
+import           GitHub                  (executeRequestWithMgr)
+import           GitHub.Auth             (Auth)
+import           GitHub.Data.Search      (searchResultResults,
+                                          searchResultTotalCount)
+import           Network.HTTP.Client     (Manager)
 
 import GitHub.UserSearch
-
-import Shift.CLI (ShiftOptions)
+import Shift.CLI         (ShiftOptions)
 
 class ClientState s where
-  getRefURL :: (MonadIO m, MonadState s m) => Ref -> m (Maybe Text)
-  getAuthorInfo :: (MonadIO m, MonadState s m) => Person -> m (Maybe (Text, Text))
+  getRefURL
+    :: (MonadIO m, MonadState s m)
+    => Ref
+    -> m (Maybe Text)
+  getAuthorInfo
+    :: (MonadIO m, MonadState s m)
+    => Person
+    -> m (Maybe (Text, Text))
 
 type GitM a = forall s. ClientState s => StateT s (ReaderT ShiftOptions IO) a
 
@@ -65,21 +74,21 @@ data CommitType
 
 data BreakingChange = BreakingChange
   { _bcSubject :: Text
-  , _bcBody :: Text
+  , _bcBody    :: Text
   } deriving (Show)
 
 
 data ConventionalCommit = ConventionalCommit
-  { _ccType :: CommitType
-  , _ccScope :: Text
-  , _ccSubject :: Text
-  , _ccBody :: Text
+  { _ccType            :: CommitType
+  , _ccScope           :: Text
+  , _ccSubject         :: Text
+  , _ccBody            :: Text
   , _ccBreakingChanges :: [BreakingChange]
   , _ccAffectedTickets :: [HashSet TicketChange]
   } deriving (Show)
 
 data TagRef = TagRef
-  { _tRef :: RefName
+  { _tRef        :: RefName
   , _tVersioning :: Versioning
   } deriving (Show, Eq)
 
@@ -98,15 +107,15 @@ type MergeGroup = (Ref, Commit, MergeCommit)
 type MiscGroup = (Ref, Commit, MiscCommit)
 
 data ChangeReport = ChangeReport
-  { _crFeatures :: [ConventionalGroup]
-  , _crFixes :: [ConventionalGroup]
-  , _crDocs :: [ConventionalGroup]
-  , _crStyles :: [ConventionalGroup]
-  , _crRefactors :: [ConventionalGroup]
-  , _crTests :: [ConventionalGroup]
-  , _crChores :: [ConventionalGroup]
-  , _crMerges :: [MergeGroup]
-  , _crMisc :: [MiscGroup]
+  { _crFeatures        :: [ConventionalGroup]
+  , _crFixes           :: [ConventionalGroup]
+  , _crDocs            :: [ConventionalGroup]
+  , _crStyles          :: [ConventionalGroup]
+  , _crRefactors       :: [ConventionalGroup]
+  , _crTests           :: [ConventionalGroup]
+  , _crChores          :: [ConventionalGroup]
+  , _crMerges          :: [MergeGroup]
+  , _crMisc            :: [MiscGroup]
   , _crBreakingChanges :: [BreakingChange]
   , _crAffectedTickets :: HashSet TicketChange
   } deriving (Show)
@@ -127,7 +136,7 @@ instance Default ChangeReport where
     }
 
 data RepositoryCache = RepositoryCache
-  { _rcRefURLs :: HashMap Text (Maybe Text)
+  { _rcRefURLs     :: HashMap Text (Maybe Text)
   , _rcAuthorInfos :: HashMap Text (Maybe (Text, Text))
   }
 
@@ -137,10 +146,10 @@ instance Default RepositoryCache where
 makeClassy ''RepositoryCache
 
 data GitHubClientState = GitHubClientState
-  { _gcsCache :: RepositoryCache
-  , _gcsAuth :: Auth
-  , _gcsManager :: Manager
-  , _gcsOwner :: Text
+  { _gcsCache      :: RepositoryCache
+  , _gcsAuth       :: Auth
+  , _gcsManager    :: Manager
+  , _gcsOwner      :: Text
   , _gcsRepository :: Text
   }
 
@@ -151,7 +160,14 @@ instance ClientState GitHubClientState where
     owner <- gets (view gcsOwner)
     repositoryName <- gets (view gcsRepository)
 
-    pure . Just $ "https://github.com/" <> owner <> "/" <> repositoryName <> "/commit/" <> (cs . show $ ref)
+    pure . Just . mconcat $
+      [ "https://github.com/"
+      , owner
+      , "/"
+      , repositoryName
+      , "/commit/"
+      , cs . show $ ref
+      ]
 
   getAuthorInfo person = do
     let email = cs $ personEmail person
@@ -164,7 +180,8 @@ instance ClientState GitHubClientState where
         manager <- gets (view gcsManager)
         auth <- gets (view gcsAuth)
 
-        results <- liftIO $ executeRequestWithMgr manager auth $ searchUsersR email
+        results <- liftIO . executeRequestWithMgr manager auth
+          $ searchUsersR email
 
         result <- case results of
           Left e -> liftIO $ throwIO e

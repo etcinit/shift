@@ -18,7 +18,7 @@ data ShiftOptions = ShiftOptions
 
 data ShiftCommand = GenerateCommand deriving (Show, Eq, Enum)
 
-data HostingType = GitHubType deriving (Show, Eq, Enum)
+data HostingType = GitHubType | GitType deriving (Show, Eq, Enum)
 
 shiftOptions :: Parser ShiftOptions
 shiftOptions = ShiftOptions
@@ -55,6 +55,7 @@ shiftCommand = subparser $
 hostingType :: ReadM HostingType
 hostingType = eitherReader $ \case
   "github" -> Right GitHubType
+  "git" -> Right GitType
   x -> Left $ "`" ++ x ++ "` is not a supported hosting type"
 
 makeLenses ''ShiftOptions

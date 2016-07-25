@@ -18,11 +18,12 @@ import           Control.Monad.State     (MonadState, StateT, gets)
 import           Control.Monad.Trans     (liftIO)
 import           Data.Default            (Default, def)
 import           Data.Git                (Commit, Person, Ref, RefName,
-                                          personEmail)
+                                          personEmail, personName)
 import           Data.HashMap.Strict     (HashMap, insert, lookup)
 import           Data.HashSet            (HashSet)
 import           Data.String.Conversions (cs)
 import           Data.Text               (Text)
+import qualified Data.Text               as T
 import qualified Data.Vector             as V
 import           Data.Versions           (Versioning)
 import           GitHub                  (executeRequestWithMgr)
@@ -76,7 +77,6 @@ data BreakingChange = BreakingChange
   { _bcSubject :: Text
   , _bcBody    :: Text
   } deriving (Show)
-
 
 data ConventionalCommit = ConventionalCommit
   { _ccType            :: CommitType
@@ -144,6 +144,15 @@ instance Default RepositoryCache where
   def = RepositoryCache mempty mempty
 
 makeClassy ''RepositoryCache
+
+data GitClientState = GitClientState
+
+instance ClientState GitClientState where
+  getRefURL _ = pure Nothing
+  getAuthorInfo person = pure . Just $
+    ( cs $ personName person
+    , mconcat ["mailto://", cs $ personEmail person]
+    )
 
 data GitHubClientState = GitHubClientState
   { _gcsCache      :: RepositoryCache

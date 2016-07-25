@@ -57,6 +57,9 @@ tempMain opts = withRepo ".git" $ \repo -> do
       runReaderT
         (void $ runStateT (mapM_ (renderDiff repo) pairedTags) state)
         opts
+    GitType -> runReaderT
+      (void $ runStateT (mapM_ (renderDiff repo) pairedTags) GitClientState)
+      opts
 
   where
     initGitHubState = do

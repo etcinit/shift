@@ -6,43 +6,53 @@
 
 module Shift.Types where
 
-import Control.Exception (Exception, throwIO)
-import Data.Monoid       ((<>))
-import Prelude           hiding (head, lookup)
+import Control.Applicative ((<|>))
+import Control.Exception   (Exception, throwIO)
+import Control.Monad       (join)
+import Data.Monoid         ((<>))
+import Prelude             hiding (head, lookup)
 
-import           Control.Lens            (assign, makeClassy, makeLenses, view,
-                                          (^.))
-import           Control.Monad.IO.Class  (MonadIO)
-import           Control.Monad.Reader    (ReaderT)
-import           Control.Monad.State     (MonadState, StateT, gets)
-import           Control.Monad.Trans     (liftIO)
-import           Data.Default            (Default, def)
-import           Data.Git                (Commit, Person, Ref, RefName,
-                                          personEmail, personName)
-import           Data.HashMap.Strict     (HashMap, insert, lookup)
-import           Data.HashSet            (HashSet)
-import           Data.String.Conversions (cs)
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import qualified Data.Vector             as V
-import           Data.Versions           (Versioning)
-import           GitHub                  (executeRequestWithMgr)
-import           GitHub.Auth             (Auth)
-import           GitHub.Data.Search      (searchResultResults,
-                                          searchResultTotalCount)
-import           Network.HTTP.Client     (Manager)
+import           Control.Lens                   (assign, makeClassy, makeLenses,
+                                                 view, (^.))
+import           Control.Monad.Catch            (MonadThrow)
+import           Control.Monad.IO.Class         (MonadIO)
+import           Control.Monad.Reader           (ReaderT)
+import           Control.Monad.State            (MonadState, StateT, gets)
+import           Control.Monad.Trans            (liftIO)
+import           Data.Default                   (Default, def)
+import           Data.Git                       (Commit, Person, Ref, RefName,
+                                                 personEmail, personName)
+import           Data.HashMap.Strict            (HashMap, insert, lookup)
+import           Data.HashSet                   (HashSet)
+import           Data.String.Conversions        (cs)
+import           Data.Text                      (Text)
+import qualified Data.Text                      as T
+import qualified Data.Vector                    as V
+import           Data.Versions                  (Versioning)
+import           GitHub                         (Error, Request,
+                                                 executeRequestWithMgr)
+import           GitHub.Auth                    (Auth)
+import           GitHub.Data.Definitions        (simpleUserLogin, simpleUserUrl)
+import           GitHub.Data.GitData            (commitAuthor)
+import           GitHub.Data.Name               (Name (..), untagName)
+import           GitHub.Data.Search             (searchResultResults,
+                                                 searchResultTotalCount)
+import           GitHub.Endpoints.Repos.Commits (commitR)
+import           Network.HTTP.Client            (Manager)
 
 import GitHub.UserSearch
 import Shift.CLI         (ShiftOptions)
+import Shift.Utilities   (orThrow)
 
 class ClientState s where
   getRefURL
-    :: (MonadIO m, MonadState s m)
+    :: (MonadIO m, MonadState s m, MonadThrow m)
     => Ref
     -> m (Maybe Text)
   getAuthorInfo
-    :: (MonadIO m, MonadState s m)
+    :: (MonadIO m, MonadState s m, MonadThrow m)
     => Person
+    -> Ref
     -> m (Maybe (Text, Text))
 
 type GitM a = forall s. ClientState s => StateT s (ReaderT ShiftOptions IO) a
@@ -149,7 +159,7 @@ data GitClientState = GitClientState
 
 instance ClientState GitClientState where
   getRefURL _ = pure Nothing
-  getAuthorInfo person = pure . Just $
+  getAuthorInfo person _ = pure . Just $
     ( cs $ personName person
     , mconcat ["mailto://", cs $ personEmail person]
     )
@@ -178,7 +188,7 @@ instance ClientState GitHubClientState where
       , cs . show $ ref
       ]
 
-  getAuthorInfo person = do
+  getAuthorInfo person ref = do
     let email = cs $ personEmail person
 
     cache <- gets (view $ gcsCache . rcAuthorInfos)
@@ -186,24 +196,47 @@ instance ClientState GitHubClientState where
     case lookup email cache of
       Just hit -> pure hit
       Nothing -> do
-        manager <- gets (view gcsManager)
-        auth <- gets (view gcsAuth)
+        result <- (lookupUserOnGitHub email)
 
-        results <- liftIO . executeRequestWithMgr manager auth
-          $ searchUsersR email
+        result2 <- case result of
+          Nothing -> lookupUserOnGitHubCommit ref
+          Just x -> pure (Just x)
 
-        result <- case results of
-          Left e -> liftIO $ throwIO e
-          Right results_ -> if (searchResultTotalCount results_ == 1)
-            then liftIO $ do
-              let user = V.head $ searchResultResults results_
-              --print results_
-              pure $ Just (user ^. urLogin, user ^. urHtmlUrl)
-            else pure Nothing
+        assign (gcsCache . rcAuthorInfos) (insert email result2 cache)
 
-        assign (gcsCache . rcAuthorInfos) (insert email result cache)
+        pure result2
 
-        pure result
+lookupUserOnGitHubCommit ref = do
+  owner <- gets (view gcsOwner)
+  repository <- gets (view gcsRepository)
+
+  result <- executeRequest_ $ commitR (N owner) (N repository) (N . cs . show $ ref)
+
+  pure $ case commitAuthor result of
+    Nothing -> Nothing
+    Just user -> Just (untagName $ simpleUserLogin user, simpleUserUrl user)
+
+lookupUserOnGitHub email = do
+  results <- executeRequest_ $ searchUsersR email
+
+  case (searchResultTotalCount results == 1) of
+    True -> liftIO $ do
+      let user = V.head $ searchResultResults results
+
+      pure $ Just (user ^. urLogin, user ^. urHtmlUrl)
+    False -> pure Nothing
+
+executeRequest_
+  :: (MonadIO m, MonadState GitHubClientState m, MonadThrow m)
+  => Request k a
+  -> m a
+executeRequest_ x = do
+  manager <- gets (view gcsManager)
+  auth <- gets (view gcsAuth)
+
+  result <- liftIO . executeRequestWithMgr manager auth $ x
+
+  orThrow result
 
 makeLenses ''ConventionalCommit
 makeLenses ''ChangeReport

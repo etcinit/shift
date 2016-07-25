@@ -6,6 +6,7 @@ module Shift.Rendering where
 import Data.List (sortOn)
 
 import           Control.Lens            ((^.))
+import           Control.Monad.Catch     (MonadThrow)
 import           Control.Monad.IO.Class  (MonadIO, liftIO)
 import           Control.Monad.State     (MonadState)
 import           Data.Git                (Commit, Ref, commitAuthor)
@@ -19,7 +20,7 @@ import           Data.Versions           (prettyV)
 import Shift.Types
 
 renderRef
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => Ref
   -> m Text
 renderRef ref = do
@@ -32,12 +33,12 @@ renderRef ref = do
     Nothing -> "[`" <> shortRef <> "`]"
 
 renderConventionalCommit
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => ConventionalGroup
   -> m Text
 renderConventionalCommit (ref, commit, pc) = do
   renderedRef <- renderRef ref
-  authorText <- renderAuthor commit
+  authorText <- renderAuthor commit ref
 
   pure . mconcat $
     [ "- "
@@ -50,33 +51,34 @@ renderConventionalCommit (ref, commit, pc) = do
     ]
 
 renderAuthor
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => Commit
+  -> Ref
   -> m Text
-renderAuthor commit = do
-  authorInfo <- getAuthorInfo (commitAuthor commit)
+renderAuthor commit ref = do
+  authorInfo <- getAuthorInfo (commitAuthor commit) ref
 
   pure $ case authorInfo of
     Just (username, authorUrl) -> " [(" <> username <> ")](" <> authorUrl <> ")"
     Nothing -> ""
 
 renderMiscCommit
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => MiscGroup
   -> m Text
 renderMiscCommit (ref, commit, MiscCommit subject) = do
   renderedRef <- renderRef ref
-  authorText <- renderAuthor commit
+  authorText <- renderAuthor commit ref
 
   pure $ "- " <> renderedRef <> " " <> subject <> authorText
 
 renderMergeCommit
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => MergeGroup
   -> m Text
 renderMergeCommit (ref, commit, MergeCommit subject) = do
   renderedRef <- renderRef ref
-  authorText <- renderAuthor commit
+  authorText <- renderAuthor commit ref
 
   pure $ "- " <> renderedRef <> " Merge " <> subject <> authorText
 
@@ -97,16 +99,16 @@ linePadded :: Text -> Text
 linePadded x = "\n" <> x <> "\n"
 
 headerOne :: Text -> Text
-headerOne = linePadded . (<>) "#"
+headerOne = linePadded . (<>) "# "
 
 headerTwo :: Text -> Text
-headerTwo = linePadded . (<>) "##"
+headerTwo = linePadded . (<>) "## "
 
 headerThree :: Text -> Text
-headerThree = linePadded . (<>) "###"
+headerThree = linePadded . (<>) "### "
 
 printReport
-  :: (MonadIO m, MonadState s m, ClientState s)
+  :: (MonadIO m, MonadState s m, ClientState s, MonadThrow m)
   => ChangeReport
   -> m ()
 printReport report = do

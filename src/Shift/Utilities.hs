@@ -13,5 +13,9 @@ orError :: (Exception e, MonadThrow m) => Maybe a -> e -> m a
 orError Nothing x = throwM x
 orError (Just x) _ = pure x
 
+orThrow :: (Exception e, MonadThrow m) => Either e a -> m a
+orThrow (Left x) = throwM x
+orThrow (Right x) = pure x
+
 pairs :: [b] -> [(b, b)]
 pairs xs = zip xs (tail xs)

@@ -30,7 +30,7 @@ import           Data.Versions           (parseV)
 import           GitHub.Auth             (Auth (OAuth))
 import           Network.HTTP.Client     (newManager)
 import           Network.HTTP.Client.TLS (tlsManagerSettings)
-import           Text.Megaparsec         (ParseError)
+import           Text.Megaparsec         (Dec, ParseError)
 
 import Shift.CLI
 import Shift.Processing
@@ -38,7 +38,7 @@ import Shift.Rendering
 import Shift.Types
 import Shift.Utilities  (orError, pairs)
 
-parseTag :: RefName -> Either ParseError TagRef
+parseTag :: RefName -> Either (ParseError Char Dec) TagRef
 parseTag ref = case parseV . cs . refNameRaw $ ref of
   Left e -> Left e
   Right v -> Right (TagRef ref v)
@@ -78,7 +78,7 @@ tempMain opts = withRepo ".git" $ \repo -> do
         , _gcsRepository = cs repositoryName
         }
 
-renderDiff :: Git -> (TagRef, TagRef) -> GitM ()
+renderDiff :: ClientState s => Git -> (TagRef, TagRef) -> GitM s ()
 renderDiff repo (tx, ty) = do
   liftIO . TIO.putStrLn . headerOne $ renderRange tx ty
 
@@ -88,7 +88,7 @@ renderDiff repo (tx, ty) = do
     [] -> throwM SEUnableToComputeDiff
     diff_ -> printReport (generateReport . rights $ parseCommit <$> diff_)
 
-lookupCommitsDiff :: Git -> TagRef -> TagRef -> GitM [(Ref, Commit)]
+lookupCommitsDiff :: Git -> TagRef -> TagRef -> GitM s [(Ref, Commit)]
 lookupCommitsDiff repo x y = do
   rawOutput <- liftIO $ readCreateProcess (shell gitCommand) ""
 
@@ -104,7 +104,7 @@ lookupCommitsDiff repo x y = do
       , refNameRaw . _tRef $ y
       ]
 
-lookupRawRef :: Git -> Text -> GitM (Maybe (Ref, Commit))
+lookupRawRef :: Git -> Text -> GitM s (Maybe (Ref, Commit))
 lookupRawRef repo rr
   = if isHex . cs $ rr
     then do

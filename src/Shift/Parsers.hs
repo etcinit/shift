@@ -24,7 +24,7 @@ spaced :: Parser a -> Parser a
 spaced = (*>) $ many (some spaceChar <|> eol)
 
 oneParserOf :: NE.NonEmpty (Parser a) -> Parser a
-oneParserOf (NE.reverse -> (x :| xs)) = foldl (\acc x -> try x <|> acc) x xs
+oneParserOf (NE.reverse -> (x :| xs)) = foldl (\acc y -> try y <|> acc) x xs
 
 manyCharsTill :: Parser end -> Parser [Char]
 manyCharsTill = manyTill anyChar
@@ -42,7 +42,7 @@ conventionalCommit = do
   cBody <- spaced . manyCharsTill . lookAhead $ do
     skipMany (try breakingChange)
     skipMany (try ticketChange)
-    many eol
+    _ <- many eol
     eof
 
   cBreakingChanges <- many (try breakingChange)

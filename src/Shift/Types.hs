@@ -6,11 +6,8 @@
 
 module Shift.Types where
 
-import Control.Applicative ((<|>))
-import Control.Exception   (Exception, throwIO)
-import Control.Monad       (join)
-import Data.Monoid         ((<>))
-import Prelude             hiding (head, lookup)
+import Control.Exception (Exception)
+import Prelude           hiding (head, lookup)
 
 import           Control.Lens                   (assign, makeClassy, makeLenses,
                                                  view, (^.))
@@ -26,11 +23,9 @@ import           Data.HashMap.Strict            (HashMap, insert, lookup)
 import           Data.HashSet                   (HashSet)
 import           Data.String.Conversions        (cs)
 import           Data.Text                      (Text)
-import qualified Data.Text                      as T
 import qualified Data.Vector                    as V
 import           Data.Versions                  (Versioning)
-import           GitHub                         (Error, Request,
-                                                 executeRequestWithMgr)
+import           GitHub                         (Request, executeRequestWithMgr)
 import           GitHub.Auth                    (Auth)
 import           GitHub.Data.Definitions        (simpleUserLogin, simpleUserUrl)
 import           GitHub.Data.GitData            (commitAuthor)
@@ -55,7 +50,7 @@ class ClientState s where
     -> Ref
     -> m (Maybe (Text, Text))
 
-type GitM a = forall s. ClientState s => StateT s (ReaderT ShiftOptions IO) a
+type GitM s a = StateT s (ReaderT ShiftOptions IO) a
 
 data ShiftException
   = SEUnableToComputeDiff
@@ -206,6 +201,10 @@ instance ClientState GitHubClientState where
 
         pure result2
 
+lookupUserOnGitHubCommit
+  :: (MonadIO m, MonadState GitHubClientState m, MonadThrow m, Show a)
+  => a
+  -> m (Maybe (Text, Text))
 lookupUserOnGitHubCommit ref = do
   owner <- gets (view gcsOwner)
   repository <- gets (view gcsRepository)
@@ -216,6 +215,10 @@ lookupUserOnGitHubCommit ref = do
     Nothing -> Nothing
     Just user -> Just (untagName $ simpleUserLogin user, simpleUserUrl user)
 
+lookupUserOnGitHub
+  :: (MonadIO m, MonadState GitHubClientState m, MonadThrow m)
+  => Text
+  -> m (Maybe (Text, Text))
 lookupUserOnGitHub email = do
   results <- executeRequest_ $ searchUsersR email
 

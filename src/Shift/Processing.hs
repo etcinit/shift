@@ -4,12 +4,12 @@ import Control.Lens            ((<>~), (^.))
 import Data.Default            (def)
 import Data.Git                (Commit, Ref, commitMessage)
 import Data.String.Conversions (cs)
-import Text.Megaparsec         (ParseError, runParser)
+import Text.Megaparsec         (Dec, ParseError, runParser)
 
 import qualified Shift.Parsers as P
 import           Shift.Types
 
-parseCommit :: (Ref, Commit) -> Either ParseError ParsedGroup
+parseCommit :: (Ref, Commit) -> Either (ParseError Char Dec) ParsedGroup
 parseCommit (r, c) = do
   pc <- runParser P.commit "git" . cs . commitMessage $ c
 

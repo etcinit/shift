@@ -2,6 +2,9 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+mkdir dist
+cp "$(stack path --local-bin)/shift" dist/
+
 docker build -t shift .
 
 # If this is not a pull request, update the branch's docker tag.

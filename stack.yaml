@@ -21,9 +21,6 @@ flags: {}
 # Extra package databases containing global packages
 extra-package-dbs: []
 
-docker:
-  enable: true
-
 image:
   container:
     base: "fpco/ubuntu-with-libgmp:14.04"

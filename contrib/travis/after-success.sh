@@ -16,5 +16,19 @@ if [ $TRAVIS_PULL_REQUEST = 'false' ]; then
   if ! test -z $TRAVIS_TAG; then
     docker tag shift quay.io/etcinit/shift:${TRAVIS_TAG} \
       && docker push quay.io/etcinit/shift:${TRAVIS_TAG};
+
+    github-release edit \
+      --user etcinit \
+      --repo shift \
+      --tag ${TRAVIS_TAG} \
+      --name ${TRAVIS_TAG} \
+      --description "."
+
+    github-release upload \
+      --user etcinit \
+      --repo shift \
+      --tag ${TRAVIS_TAG} \
+      --name "shift-linux-amd64" \
+      --file dist/shift
   fi
 fi

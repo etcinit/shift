@@ -13,12 +13,3 @@ cache:
   - "$HOME/.stack"
   - ".stack-work"
 after_success: bash contrib/travis/after-success.sh
-deploy:
-  provider: releases
-  api_key:
-    secure: iTN17UHSZiayvQQoohu1JkrVcQmIGKnuMzWGr63Ujalmtzno1r6WAS1iVghAlpu42dRTHCjK6IRp0seFIUs7ltibyidsOvqacdPN+4nL0otqr9JocKnpMqEmPKI1QbU3j7kuiiY5hqwtvtuMaXeHUpFn2Y3VhTcqGcU1IUd1IUeKhMLTiYwbW+06HMyq9oTTRSW625miY3vzCntyIsj/tAeEwuNIHe2/rIeqrUqzKw6kNivhxfKNQP37flv4wKLAk/qCcPeTZ1sgyvoyoXiA/O7Vi7YBftsEq0M+N9Y0hCEnEPM8cIChsJZP+G8lT9YYHSu5Sxuat25j9mjZKrqSQ1ScWmdPIGzacH7qAxUtgESKoWcEttoRuH9hOnqitbL1PybmR8SQhqV1qo7v8WJVEYtrdC3xxp+VCob4sgZeQpimR3MNPGLZh3QWNf4Ol/WOQhZKIP4nbYHcAHM5xLRydiIcPiyeyauiWVoxZoKyxKm9qixoAxDUhhyI81PfxD5L3K6vciyoiUMvjYZdCSir4rSVWAcLHher5h7iQoI14myGBQiTo/Tck101oQF3ln1LRxK2oERVgQAE+9kZMxDSpWN3Hv1kJtYdhDET1Kdv4RwUGReCegMfgwMdsuOCBQ3lUYg4C/Q0PZT9vVBmLkYW/yFukmZ6oLOLDpHEryep1K0=
-  file: dist/shift
-  skip_cleanup: true
-  on:
-    repo: etcinit/shift
-    tags: true

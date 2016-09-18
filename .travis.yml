@@ -7,7 +7,7 @@ addons:
     packages:
     - libgmp-dev
 before_install: bash contrib/travis/before-install.sh
-script: stack test --no-terminal --install-ghc --copy-bins
+script: stack test --no-terminal --install-ghc --copy-bins --no-docker
 cache:
   directories:
   - "$HOME/.stack"

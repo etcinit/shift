@@ -2,7 +2,6 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-mkdir dist
 cp "$(stack path --local-bin)/shift" dist/
 
 docker build -t shift .

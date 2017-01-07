@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 
@@ -6,31 +7,36 @@ module Shift.Git where
 import Control.Monad  (void)
 import Data.Either    (rights)
 import Data.List      (sortBy)
-import Data.Maybe     (catMaybes)
+import Data.Maybe     (catMaybes, fromMaybe)
 import Data.Set       as S (toList)
+import Data.String    (fromString)
 import Data.Tuple     (swap)
 import System.Process
 
-import           Control.Lens            ((^.))
-import           Control.Monad.Catch     (throwM)
-import           Control.Monad.Reader    (runReaderT)
-import           Control.Monad.State     (runStateT)
-import           Control.Monad.Trans     (liftIO)
-import           Data.ByteString.Char8   (ByteString)
-import qualified Data.ByteString.Char8   as BS
-import           Data.Default            (def)
+import           Control.Lens              ((^.))
+import           Control.Monad.Catch       (throwM)
+import           Control.Monad.Reader      (runReaderT)
+import           Control.Monad.State       (runStateT)
+import           Control.Monad.Trans       (liftIO)
+import           Data.ByteString.Char8     (ByteString)
+import qualified Data.ByteString.Char8     as BS
+import           Data.Default              (def)
 import           Data.Git
-import           Data.Git.Ref            (fromHex, isHex)
+import           Data.Git.Ref              (fromHex, isHex)
+import           Data.Git.Storage          (gitRepoPath)
 import           Data.Git.Storage.Object
-import           Data.String.Conversions (cs)
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import qualified Data.Text.IO            as TIO
-import           Data.Versions           (parseV)
-import           GitHub.Auth             (Auth (OAuth))
-import           Network.HTTP.Client     (newManager)
-import           Network.HTTP.Client.TLS (tlsManagerSettings)
-import           Text.Megaparsec         (Dec, ParseError)
+import           Data.String.Conversions   (cs)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Data.Text.IO              as TIO
+import           Data.Versions             (parseV)
+import           Filesystem.Path           (absolute, basename, parent, (</>))
+import           Filesystem.Path.CurrentOS (encodeString)
+import           GitHub.Auth               (Auth (OAuth))
+import           Network.HTTP.Client       (newManager)
+import           Network.HTTP.Client.TLS   (tlsManagerSettings)
+import           System.Directory          (getCurrentDirectory)
+import           Text.Megaparsec           (Dec, ParseError)
 
 import Shift.CLI
 import Shift.Processing
@@ -43,8 +49,13 @@ parseTag ref = case parseV . cs . refNameRaw $ ref of
   Left e -> Left e
   Right v -> Right (TagRef ref v)
 
+repoPath opts = fromMaybe ".git" (opts ^. soRepositoryPath)
+
+withRepo_ :: ShiftOptions -> (Git -> IO c) -> IO c
+withRepo_ opts = withRepo (fromString (repoPath opts))
+
 tempMain :: ShiftOptions -> IO ()
-tempMain opts = withRepo ".git" $ \repo -> do
+tempMain opts = withRepo_ opts $ \repo -> do
   tags <- tagList repo
 
   let sortedVersions = sortBy (flip compare) . rights $ parseTag <$> toList tags
@@ -52,7 +63,7 @@ tempMain opts = withRepo ".git" $ \repo -> do
 
   case opts ^. soHostingType of
     GitHubType -> do
-      state <- initGitHubState
+      state <- initGitHubState opts
 
       runReaderT
         (void $ runStateT (mapM_ (renderDiff repo) pairedTags) state)
@@ -61,22 +72,22 @@ tempMain opts = withRepo ".git" $ \repo -> do
       (void $ runStateT (mapM_ (renderDiff repo) pairedTags) GitClientState)
       opts
 
-  where
-    initGitHubState = do
-      manager <- newManager tlsManagerSettings
+initGitHubState :: ShiftOptions -> IO GitHubClientState
+initGitHubState opts = do
+  manager <- newManager tlsManagerSettings
 
-      token <- (opts ^. soGitHubToken) `orError` SEMissingGitHubToken
-      repositoryOwner <- (opts ^. soGitHubOwner) `orError` SEMissingGitHubOwner
-      repositoryName <- (opts ^. soGitHubRepository)
-        `orError` SEMissingGitHubRepository
+  token <- (opts ^. soGitHubToken) `orError` SEMissingGitHubToken
+  repositoryOwner <- (opts ^. soGitHubOwner) `orError` SEMissingGitHubOwner
+  repositoryName <- (opts ^. soGitHubRepository)
+    `orError` SEMissingGitHubRepository
 
-      pure GitHubClientState
-        { _gcsCache = def
-        , _gcsAuth = OAuth (cs token)
-        , _gcsManager = manager
-        , _gcsOwner = cs repositoryOwner
-        , _gcsRepository = cs repositoryName
-        }
+  pure GitHubClientState
+    { _gcsCache = def
+    , _gcsAuth = OAuth (cs token)
+    , _gcsManager = manager
+    , _gcsOwner = cs repositoryOwner
+    , _gcsRepository = cs repositoryName
+    }
 
 renderDiff :: ClientState s => Git -> (TagRef, TagRef) -> GitM s ()
 renderDiff repo (tx, ty) = do
@@ -85,12 +96,14 @@ renderDiff repo (tx, ty) = do
   diff <- lookupCommitsDiff repo tx ty
 
   case diff of
-    [] -> throwM SEUnableToComputeDiff
+    [] -> liftIO $ putStrLn "\nNo additional changes found."
     diff_ -> printReport (generateReport . rights $ parseCommit <$> diff_)
 
 lookupCommitsDiff :: Git -> TagRef -> TagRef -> GitM s [(Ref, Commit)]
 lookupCommitsDiff repo x y = do
-  rawOutput <- liftIO $ readCreateProcess (shell gitCommand) ""
+  rawOutput <- liftIO $ do
+    repoPath <- toAbsolute (gitRepoPath repo)
+    readCreateProcess ((shell gitCommand) { cwd = Just . encodeString $ repoPath }) ""
 
   catMaybes <$> mapM
     (lookupRawRef repo)
@@ -119,3 +132,12 @@ lookupRawRef repo rr
 
 commitSummary :: Commit -> ByteString
 commitSummary = head . BS.split '\n' . commitMessage
+
+toAbsolute path = case absolute path of
+  True -> pure path
+  False -> do
+    cwd <- fromString <$> getCurrentDirectory
+
+    pure $ case (basename path) == (fromString ".git") of
+      True -> cwd </> path
+      False -> cwd </> (parent path)

@@ -47,6 +47,8 @@ library
                      , vector
                      , exceptions
                      , semigroups
+                     , system-filepath
+                     , directory
   default-language:    Haskell2010
 
 executable shift

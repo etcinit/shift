@@ -10,6 +10,7 @@ import Control.Lens (makeLenses)
 
 data ShiftOptions = ShiftOptions
   { _soCommand          :: ShiftCommand
+  , _soRepositoryPath   :: Maybe String
   , _soHostingType      :: HostingType
   , _soGitHubOwner      :: Maybe String
   , _soGitHubRepository :: Maybe String
@@ -23,6 +24,11 @@ data HostingType = GitHubType | GitType deriving (Show, Eq, Enum)
 shiftOptions :: Parser ShiftOptions
 shiftOptions = ShiftOptions
   <$> shiftCommand
+  <*> optional (strOption
+    ( long "repository-path"
+    <> metavar "PATH"
+    <> help "Path where the Git repository is located (Default: .git)"
+    ))
   <*> option hostingType
     ( long "hosting-type"
     <> short 't'

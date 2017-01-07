@@ -19,6 +19,8 @@ shiftMain = do
 
   case currentOptions ^. soCommand of
     GenerateCommand -> tempMain currentOptions
+    VersionsCommand -> versionsCommand currentOptions
+    LatestCommand -> latestCommand currentOptions
 
   where
     opts = info (helper <*> shiftOptions)

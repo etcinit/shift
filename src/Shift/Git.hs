@@ -4,7 +4,7 @@
 
 module Shift.Git where
 
-import Control.Monad  (void)
+import Control.Monad  (forM_, void)
 import Data.Either    (rights)
 import Data.List      (sortBy)
 import Data.Maybe     (catMaybes, fromMaybe)
@@ -29,7 +29,7 @@ import           Data.String.Conversions   (cs)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import qualified Data.Text.IO              as TIO
-import           Data.Versions             (parseV)
+import           Data.Versions             (parseV, prettyV)
 import           Filesystem.Path           (absolute, basename, parent, (</>))
 import           Filesystem.Path.CurrentOS (encodeString)
 import           GitHub.Auth               (Auth (OAuth))
@@ -54,13 +54,29 @@ repoPath opts = fromMaybe ".git" (opts ^. soRepositoryPath)
 withRepo_ :: ShiftOptions -> (Git -> IO c) -> IO c
 withRepo_ opts = withRepo (fromString (repoPath opts))
 
+sortedTagList tags = sortBy (flip compare) . rights $ parseTag <$> toList tags
+
 tempMain :: ShiftOptions -> IO ()
 tempMain opts = withRepo_ opts $ \repo -> do
   tags <- tagList repo
 
-  let sortedVersions = sortBy (flip compare) . rights $ parseTag <$> toList tags
+  let sortedVersions = sortedTagList tags
       pairedTags = swap <$> pairs sortedVersions
 
+  shift opts repo pairedTags
+
+latestCommand :: ShiftOptions -> IO ()
+latestCommand opts = withRepo_ opts $ \repo -> do
+  tags <- tagList repo
+
+  let sortedVersions = sortedTagList tags
+      pairedTags = swap <$> pairs sortedVersions
+
+  case pairedTags of
+    x:_ -> shift opts repo [x]
+    [] -> putStrLn "Unable to find two versions to compare"
+
+shift opts repo pairedTags =
   case opts ^. soHostingType of
     GitHubType -> do
       state <- initGitHubState opts
@@ -71,6 +87,12 @@ tempMain opts = withRepo_ opts $ \repo -> do
     GitType -> runReaderT
       (void $ runStateT (mapM_ (renderDiff repo) pairedTags) GitClientState)
       opts
+
+versionsCommand :: ShiftOptions -> IO ()
+versionsCommand opts = withRepo_ opts $ \repo -> do
+  tags <- tagList repo
+
+  forM_ (sortedTagList tags) $ \version -> putStrLn (T.unpack . prettyV $ _tVersioning version)
 
 initGitHubState :: ShiftOptions -> IO GitHubClientState
 initGitHubState opts = do

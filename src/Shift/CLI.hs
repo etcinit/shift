@@ -17,7 +17,11 @@ data ShiftOptions = ShiftOptions
   , _soGitHubToken      :: Maybe String
   } deriving (Show, Eq)
 
-data ShiftCommand = GenerateCommand deriving (Show, Eq, Enum)
+data ShiftCommand
+  = GenerateCommand
+  | VersionsCommand
+  | LatestCommand
+  deriving (Show, Eq, Enum)
 
 data HostingType = GitHubType | GitType deriving (Show, Eq, Enum)
 
@@ -56,6 +60,14 @@ shiftCommand = subparser $
   command "generate"
     (info (pure GenerateCommand)
       (progDesc "Generate changelog")
+    )
+  <> command "versions"
+    (info (pure VersionsCommand)
+      (progDesc "List all versions in the repository")
+    )
+  <> command "latest"
+    (info (pure LatestCommand)
+      (progDesc "Generate a changelog for the latest version only")
     )
 
 hostingType :: ReadM HostingType
